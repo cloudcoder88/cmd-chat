@@ -2,14 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class ClientRenderer(ABC):
-    # These attributes are expected to be provided by subclasses
-    # (typically via multiple inheritance with CryptoService)
-    username: str
-    
-    @abstractmethod
-    def _decrypt(self, message: str) -> str:
-        """Decrypt an encrypted message (provided by crypto mixin)."""
-        raise NotImplementedError("Need to implement _decrypt")
 
     @abstractmethod
     def print_message(self, message: str) -> str:

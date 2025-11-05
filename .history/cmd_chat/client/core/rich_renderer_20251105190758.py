@@ -26,16 +26,16 @@ class RichClientRenderer(ClientRenderer):
         """ generating string with message in required format
         """
         # split only on the first ':' so message bodies containing ':' are preserved
-        parts = message.split(":", 1)
-        if parts[0] == self.username:
+        message = message.split(":", 1)
+        if message[0] == self.username:
             return \
-                Text(text=parts[0], style="bold") + \
+                Text(text=message[0], style="bold") + \
                 Text(text=": ", style="bold") + \
-                Text(text=parts[1], style="underline")
+                Text(text=message[1], style="underline")
         return \
-            Text(text=parts[0], style="bold") + \
+            Text(text=message[0], style="bold") + \
             Text(text=": ", style="bold") + \
-            Text(text=parts[1], style="underline")
+            Text(text=message[1], style="underline")
 
     def clear_console(self):
         # For windows clear command its cls
@@ -57,7 +57,7 @@ class RichClientRenderer(ClientRenderer):
     ) -> str:
         return username
 
-    def print_chat(self, response) -> None:
+    def print_chat(self, response: list[str]) -> str:
         self.clear_console()
         for i, msg in enumerate(response["messages"][-MESSAGES_TO_SHOW:]):
             actual_message = self._decrypt(msg)

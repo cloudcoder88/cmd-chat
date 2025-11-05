@@ -48,7 +48,7 @@ class DefaultClientRenderer(ClientRenderer):
         # Username label + colored username
         return f"USERNAME: " + COLORS["username_color"] + username + COLORS["text_color"]
 
-    def print_chat(self, response) -> None:
+    def print_chat(self, response: list[str]) -> str:
         for i, msg in enumerate(response["messages"]):
             actual_message = self._decrypt(msg)
             if i == 0:

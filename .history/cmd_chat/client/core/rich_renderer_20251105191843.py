@@ -57,7 +57,7 @@ class RichClientRenderer(ClientRenderer):
     ) -> str:
         return username
 
-    def print_chat(self, response) -> None:
+    def print_chat(self, response: list[str]) -> str:
         self.clear_console()
         for i, msg in enumerate(response["messages"][-MESSAGES_TO_SHOW:]):
             actual_message = self._decrypt(msg)
