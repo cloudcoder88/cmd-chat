@@ -3,10 +3,6 @@ from cmd_chat.server.server import run_server
 from cmd_chat.client.client import Client
 
 
-def run_http_server(ip: str, port: int, password: str | None) -> None:
-    run_server(host=ip, port=int(port), admin_password=password)
-
-
 def main():
     parser = argparse.ArgumentParser(description="Command-line chat application")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -25,7 +21,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "serve":
-        run_http_server(args.ip_address, args.port, args.password)
+        run_server(host=args.ip_address, port=int(args.port), password=args.password)
     elif args.command == "connect":
         Client(
             server=args.ip_address,

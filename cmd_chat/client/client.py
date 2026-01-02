@@ -1,13 +1,16 @@
 import asyncio
 import json
+import base64
 from typing import Optional
 
-import rsa
+import srp
 import requests
 from cryptography.fernet import Fernet
 import websockets
 from rich.console import Console
 from rich.panel import Panel
+
+srp.rfc5054_enable()
 
 
 class Client:
@@ -17,11 +20,8 @@ class Client:
         self.server = server
         self.port = port
         self.username = username
-        self.password = password or ""
+        self.password = (password or "").encode()
         self.user_id: Optional[str] = None
-
-        self.public_key: Optional[rsa.PublicKey] = None
-        self.private_key: Optional[rsa.PrivateKey] = None
         self.fernet: Optional[Fernet] = None
 
         self.console = Console()
@@ -47,34 +47,55 @@ class Client:
     def info(self, message: str) -> None:
         self.console.print(f"[cyan]• {message}[/]")
 
-    def generate_keys(self) -> None:
-        with self.console.status(
-            "[cyan]Generating RSA keys (2048 bit)...[/]", spinner="dots"
-        ):
-            self.public_key, self.private_key = rsa.newkeys(2048)
-        self.success("RSA keys generated")
+    def srp_authenticate(self) -> None:
+        """SRP authentication flow"""
+        with self.console.status("[cyan]Starting SRP handshake...[/]", spinner="dots"):
 
-    def exchange_keys(self) -> None:
-        with self.console.status(
-            "[cyan]Exchanging keys with server...[/]", spinner="dots"
-        ):
-            pubkey_bytes = self.public_key.save_pkcs1()
-            response = requests.post(
-                f"{self.base_url}/get_key",
-                files={"pubkey": ("key.pem", pubkey_bytes)},
-                data={"username": self.username, "password": self.password},
+            usr = srp.User(b"chat", self.password, hash_alg=srp.SHA256)
+            _, A = usr.start_authentication()
+
+            resp = requests.post(
+                f"{self.base_url}/srp/init",
+                json={
+                    "username": self.username,
+                    "A": base64.b64encode(A).decode(),
+                },
                 timeout=30,
             )
-            response.raise_for_status()
+            resp.raise_for_status()
+            init_data = resp.json()
 
-            self.user_id = response.headers.get("X-User-Id")
-            encrypted_key = response.content
-            symmetric_key = rsa.decrypt(encrypted_key, self.private_key)
-            self.fernet = Fernet(symmetric_key)
+            self.user_id = init_data["user_id"]
+            B = base64.b64decode(init_data["B"])
+            salt = base64.b64decode(init_data["salt"])
 
-        self.success(f"Key exchange complete (session: {self.user_id[:8]}...)")
-        self.public_key = None
-        self.private_key = None
+            M = usr.process_challenge(salt, B)
+
+            if M is None:
+                raise ValueError("SRP challenge processing failed")
+
+            resp = requests.post(
+                f"{self.base_url}/srp/verify",
+                json={
+                    "user_id": self.user_id,
+                    "username": self.username,
+                    "M": base64.b64encode(M).decode(),
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            verify_data = resp.json()
+
+            H_AMK = base64.b64decode(verify_data["H_AMK"])
+            usr.verify_session(H_AMK)
+
+            if not usr.authenticated():
+                raise ValueError("Server authentication failed")
+
+            session_key = base64.b64decode(verify_data["session_key"])
+            self.fernet = Fernet(session_key)
+
+        self.success(f"SRP authenticated (session: {self.user_id[:8]}...)")
 
     def render_messages(self) -> None:
         self.console.clear()
@@ -147,13 +168,10 @@ class Client:
         self.console.print()
 
         try:
-            self.generate_keys()
-            self.exchange_keys()
+            self.srp_authenticate()
 
             self.info("Connecting to chat...")
-            url = (
-                f"{self.ws_url}/ws/chat?user_id={self.user_id}&password={self.password}"
-            )
+            url = f"{self.ws_url}/ws/chat?user_id={self.user_id}"
 
             async with websockets.connect(url) as ws:
                 self.success("Connected to chat server")
@@ -175,10 +193,12 @@ class Client:
             self.error(f"Cannot connect to {self.base_url}")
         except requests.exceptions.HTTPError as e:
             self.error(f"Server error: {e.response.status_code} - {e.response.text}")
-        except Exception as e:
+        except ValueError as e:
+            self.error(f"Authentication failed: {e}")
+        except Exception:
             import traceback
 
-            self.error(f"Error: {e}")
+            self.error("Error occurred")
             traceback.print_exc()
 
     def run(self) -> None:

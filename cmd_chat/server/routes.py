@@ -4,9 +4,13 @@ from . import views
 
 
 def register_routes(app: Sanic) -> None:
-    @app.route("/get_key", methods=["GET", "POST"])
-    async def get_key_route(request: Request):
-        return await views.get_key(request, app)
+    @app.post("/srp/init")
+    async def srp_init_route(request: Request):
+        return await views.srp_init(request, app)
+
+    @app.post("/srp/verify")
+    async def srp_verify_route(request: Request):
+        return await views.srp_verify(request, app)
 
     @app.websocket("/ws/chat")
     async def chat_ws_route(request: Request, ws: Websocket):

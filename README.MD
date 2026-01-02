@@ -1,98 +1,106 @@
 <div align="center">
 
-# 🤐 CMD-CHAT: The "Ghost" Protocol
+# 🤐 CMD-CHAT
 
-### The chat tool your ISP doesn't want you to have.
-
-### Zero Logs. Zero Disk Writes. 100% Deniable.
+### encrypted terminal chat. no servers. no logs. ram only.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![NSA Approved](https://img.shields.io/badge/NSA-Hates_This-red.svg)](#)
 
 </div>
 
 ---
 
-> ⚠️ **WARNING:** This tool was designed for absolute privacy. Once you close the terminal, the conversation never existed. Not even forensics can recover what wasn't written. Use responsibly.
+peer-to-peer encrypted chat that runs in your terminal. you host, you control. close the window — everything's gone.
 
----
+## why
 
-## 💀 Why does this exist?
+every "secure" messenger still stores metadata somewhere. this doesn't. it's just two terminals talking over an encrypted tunnel. nothing written to disk, ever.
 
-Corporations sell your DMs. ISPs throttle your connections. "Encrypted" apps still store metadata on their servers.
+## how it works
 
-**CMD-CHAT is different.**
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        SRP AUTHENTICATION                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  CLIENT                                         SERVER           │
+│    │                                              │              │
+│    │─────── POST /srp/init {username, A} ───────► │              │
+│    │         (A = client public ephemeral)        │              │
+│    │                                              │              │
+│    │◄────────── {user_id, B, salt} ────────────── │              │
+│    │         (B = server public ephemeral)        │              │
+│    │                                              │              │
+│    │                                              │              │
+│    │  [both sides compute shared session key      │              │
+│    │   using password + ephemeral values]         │              │
+│    │                                              │              │
+│    │                                              │              │
+│    │─────── POST /srp/verify {user_id, M} ──────► │              |
+│    │         (M = client proof)                   │              │
+│    │                                              │              │
+│    │◄────────── {H_AMK, session_key} ──────────── │              │
+│    │         (H_AMK = server proof)               │              │
+│    │                                              │              │
+│    │  [password never transmitted]                │              │
+│    │  [MITM can't derive session key]             │              |
+│    │                                              │              │
+├──────────────────────────────────────────────────────────────────┤
+│                        ENCRYPTED CHAT                            │
+├──────────────────────────────────────────────────────────────────┤
+│    │                                              │              │
+│    │═══════ WebSocket /ws/chat?user_id ═════════► │              │
+│    │         (authenticated session)              │              │
+│    │                                              │              │
+│    │◄═══════════ AES-encrypted messages ════════► │              │
+│    │         (Fernet = AES-128-CBC + HMAC)        │              │
+│    │                                              │              │
+│    │                                              │              │
+│    │  [on disconnect: keys wiped from RAM]        │              │
+│    │                                              │              │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-It lives entirely in your RAM. It creates a secure tunnel between two terminals, encrypts every byte with military-grade algorithms, and then **self-destructs** the moment you type `/exit`.
+**SRP (Secure Remote Password)** — password is never sent over the network. both sides prove they know it via zero-knowledge proof, then derive identical session keys.
 
-### 🔥 The "Paranoid" Feature Set
-
-- **Ghost Mode:** Nothing touches the hard drive. All data exists only in volatile memory (RAM).
-- **Double-Blind Encryption:** RSA Handshake + AES Symmetric Session. Even if they intercept the traffic, it looks like white noise.
-- **Kill Switch:** Closing the window wipes the keys instantly.
-- **No Central Server:** You are the server. No logs for big tech to subpoena.
-
----
-
-## 🕵️‍♂️ How the "Black Box" Works
-
-1. **Handshake:** Client generates a disposable RSA key pair.
-2. **Exchange:** Server mints a one-time symmetric key, encrypts it with your public key.
-3. **Lock:** The tunnel is sealed.
-4. **Vanish:** Communication happens. On exit, memory is overwritten. **Poof.**
-
----
-
-## ⚡ Quick Start (Before it gets banned)
-
-You don't need a PhD in cryptography. You just need Python.
-
-### 1. Grab the Code
+## install
 
 ```bash
 git clone https://github.com/emilycodestar/cmd-chat.git
 cd cmd-chat
+python -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 ```
 
-### 2. Lock & Load (Install)
+windows:
 
 ```bash
-# Linux / macOS
-python -m venv venv && source venv/bin/activate && pip install -r requirements.txt
-
-# Windows
 python -m venv venv ; .\venv\Scripts\activate ; pip install -r requirements.txt
 ```
 
-### 3. Go Dark (Usage)
+## usage
 
-#### Host the Bunker (Server)
-
-```bash
-python cmd_chat.py serve 0.0.0.0 3000 --password SUPER_SECRET_CODE
-```
-
-#### Join the Channel (Client)
+start server:
 
 ```bash
-python cmd_chat.py connect SERVER_IP 3000 Tyler SUPER_SECRET_CODE
+python cmd_chat.py serve 0.0.0.0 3000 --password mysecret
 ```
 
-(Replace SERVER_IP with localhost if testing locally)
+connect:
 
-### 👁️ Visual Proof
-
-They can't read this, but you can.
+```bash
+python cmd_chat.py connect SERVER_IP 3000 username mysecret
+```
 
 ![Example](example.gif)
 
-<div align="center">
+## features
 
-Built for the shadows.
+- **ram only** — nothing touches disk
+- **rsa + aes** — key exchange + symmetric encryption
+- **no central server** — direct p2p connection
+- **srp auth** — password never sent over network
 
-If this repo disappears, you know why. 😉
+## license
 
-⭐ Star it while it's still up
-
-</div>
+MIT

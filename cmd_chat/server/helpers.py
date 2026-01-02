@@ -32,8 +32,8 @@ def require_auth(request: Request, app: Sanic) -> Optional[response.HTTPResponse
 
 
 async def send_state(ws: Websocket, app: Sanic) -> None:
-    messages = await app.ctx.message_store.get_all()
-    users = await app.ctx.session_store.get_all()
+    messages = app.ctx.message_store.get_all()
+    users = app.ctx.session_store.get_all()
     await ws.send(
         json.dumps(
             {

@@ -6,19 +6,20 @@ from sanic_ext import Extend
 
 from .managers import ConnectionManager
 from .stores import MessageStore, UserSessionStore
+from .srp_auth import SRPAuthManager
 from .logger import logger
 
 from .routes import register_routes
 
 
-def create_app() -> Sanic:
-    app = Sanic("cmd-chat-server")
+def create_app(password: str = "", name: str = "cmd-chat-server") -> Sanic:
+    app = Sanic(name)
     Extend(app)
 
     app.ctx.message_store = MessageStore()
     app.ctx.session_store = UserSessionStore()
     app.ctx.connection_manager = ConnectionManager()
-    app.ctx.admin_password = None
+    app.ctx.srp_manager = SRPAuthManager(password)
     app.ctx.fernet_key = Fernet.generate_key()
     app.ctx.cleanup_task = None
 
@@ -47,4 +48,4 @@ async def cleanup_stale_sessions(app: Sanic) -> None:
     while True:
         with suppress(asyncio.CancelledError):
             await asyncio.sleep(300)
-            await app.ctx.session_store.cleanup_stale()
+            app.ctx.session_store.cleanup_stale()

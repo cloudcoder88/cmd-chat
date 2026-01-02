@@ -28,8 +28,8 @@ class ConnectionManager:
                     continue
                 try:
                     await connection.send(message)
-                except Exception as e:
-                    logger.warning(f"Failed to send message to {user_id}: {e}")
+                except Exception:
+                    logger.exception(f"Failed to send message to {user_id}")
                     disconnected.append(user_id)
 
             for user_id in disconnected:
@@ -42,7 +42,7 @@ class ConnectionManager:
                 try:
                     await connection.send(message)
                     return True
-                except Exception as e:
-                    logger.warning(f"Failed to send personal message to {user_id}: {e}")
+                except Exception:
+                    logger.exception(f"Failed to send personal message to {user_id}")
                     return False
         return False
